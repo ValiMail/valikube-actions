@@ -1,0 +1,49 @@
+name: 'Valiikube deploy'
+description: 'Deploy valimail apps to kubernetes'
+inputs:
+  env:
+    description: 'Environment to deploy to'
+    required: true
+  cluster:
+    description: 'The name of the kubernetes cluster to deploy to'
+    required: true
+  set-deploy-version:
+    description: 'Should we update the image sha to deploy?'
+    default: true
+  image_name:
+    description: "The name of the docker image that we set the version for"
+    default: ""
+runs:
+  using: "composite"
+  steps:
+    - name: Set up kubernetes config file
+      run: |
+        echo '::group::Setting up kubernetes config file'
+        aws eks update-kubeconfig --name ${{ inputs.cluster }}
+        echo '::endgroup::'
+      shell: bash
+    - name: Set deploy version
+      run: |
+        if [[ "${{ inputs.set-deploy-version }}" == "true" ]]; then
+          echo '::group::Setting deploy version'
+          # Default image to ghcr.io/valimail/repo_name
+          IMAGE="${{inputs.image_name}}"
+          if [[ -z "$IMAGE" ]]; then
+            IMAGE="ghcr.io/valimail/${GITHUB_REPOSITORY##*/}"
+          fi
+          export IMAGE
+
+          cd kubernetes/overlays/${{ inputs.env }}
+          kustomize edit set image "$IMAGE=:$GITHUB_SHA"
+
+          echo 'Modified kustomization.yaml:'
+          cat kustomization.yaml
+          echo '::endgroup::'
+        fi
+      shell: bash
+    - name: Run kubectl apply
+      run: |
+        echo '::group::Running kubectl apply'
+        kubectl apply -k kubernetes/overlays/${{ inputs.env }}
+        echo '::endgroup::'
+      shell: bash

@@ -1,0 +1,41 @@
+name: 'Valikube add a version suffix'
+description: |
+  Add suffix to deployed resources to support multiple deploys of the same
+  environment (e.g. multiple stage deploys). Also update the domain name
+  for the deplyed application with the same suffix.
+inputs:
+  version:
+    description: 'The version to add as a suffix'
+    required: true
+  env:
+    description: 'The environment to modify'
+    default: 'stage'
+runs:
+  using: "composite"
+  steps:
+    - name: Add suffix to created resources
+      run: |
+        echo 'Adding nameSuffix to kustomization.yaml'
+        cd kubernetes/overlays/${{ inputs.env }}
+        kustomize edit set namesuffix -- "-${{ inputs.version }}"
+        echo '::group::Modified kustomization.yaml'
+        cat kustomization.yaml
+        echo '::endgroup::'
+      shell: bash
+    - name: Modify the hostname of deployed services
+      run: |
+        FILENAME="kubernetes/overlays/${{ inputs.env }}/lb-patch.yaml"
+        if [[ -e "$FILENAME" ]]; then
+          echo "Modifying lb-patch.yaml"
+          # Modifies the domain name in lb-patch.yaml adding the suffix to it
+          yq -i e '
+            "${{ inputs.version }}" as $suffix |
+            .[0].value[0].hosts[0] |= sub("^([^.]+)", "${1}-" + $suffix)' \
+            "$FILENAME"
+            echo '::group::Modified lb-patch.yaml'
+            cat "$FILENAME"
+            echo '::endgroup::'
+        else
+          echo "::warning::$FILENAME doesn't exist. Skipping hostname modification"
+        fi
+      shell: bash

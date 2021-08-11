@@ -1,0 +1,32 @@
+name: Teardown test environments on label removal or PR close
+on:
+  pull_request:
+    types:
+      - unlabeled
+      - closed
+
+jobs:
+  teardown-stage:
+    name: Teardown previous deployment
+    if: ${{ (github.event.action == 'closed' && contains(github.event.pull_request.labels.*.name, 'deploy') || (github.event.action == 'unlabeled' && !contains(github.event.pull_request.labels.*.name, 'deploy'))) }}
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.VALIMAIL_APP_STAGING_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VALIMAIL_APP_STAGING_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      - name: Add version suffix
+        uses: ./.github/actions/add-version-suffix
+        with:
+          env: stage
+          version: pr${{ github.event.number }}
+      - name: Teardown deploy in kubernetes
+        uses: ./.github/actions/teardown
+        with:
+          env: stage
+          cluster: valimail-app-staging

@@ -1,0 +1,32 @@
+name: 'Valiikube deploy'
+description: 'Deploy valimail apps to kubernetes'
+inputs:
+  env:
+    description: 'Environment to deploy to'
+    required: true
+  cluster:
+    description: 'The name of the kubernetes cluster to deploy to'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Set up kubernetes config file
+      run: |
+        echo '::group::Setting up kubernetes config file'
+        aws eks update-kubeconfig --name ${{ inputs.cluster }}
+        echo '::endgroup::'
+      shell: bash
+    - name: Delete resources
+      run: |
+        echo '::group::Running kubectl delete'
+        cd kubernetes/overlays/${{ inputs.env }}
+        # Our default deploy manifests create kubernetes namespaces when
+        # necessary, but when tearing down, we absolutely don't want to delete
+        # the namespace as there might be other resources in it we don't want
+        # to destroy. So what we do here is filter out any namespace resources
+        # with yq before deleting.
+        kubectl kustomize | \
+          yq e 'select(.kind != "Namespace")' - |
+          kubectl delete -f -
+        echo '::endgroup::'
+      shell: bash
