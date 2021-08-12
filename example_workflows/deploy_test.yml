@@ -1,8 +1,7 @@
 name: Deploy PR to test environment
 on:
   pull_request:
-    types:
-      labeled
+    types: labeled
 
 jobs:
   build:

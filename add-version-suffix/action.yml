@@ -9,9 +9,10 @@ inputs:
     required: true
   env:
     description: 'The environment to modify'
+    required: false
     default: 'stage'
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
     - name: Add suffix to created resources
       run: |
