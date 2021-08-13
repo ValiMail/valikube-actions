@@ -40,3 +40,27 @@ runs:
           echo "::warning::$FILENAME doesn't exist. Skipping hostname modification"
         fi
       shell: bash
+    - name: Modify label selector patch
+      run: |
+        for BASE_FILENAME in "${FILES[@]}"; do
+          BASE_FILENAME=label-selector-patch.yaml
+          FILENAME="kubernetes/overlays/${{ inputs.env }}/$BASE_FILENAME"
+          if [[ -e "$FILENAME" ]]; then
+            echo "Modifying $BASE_FILENAME"
+            # Modifies the label value in the patch, adding a suffix to it.
+            # This ie needed so we can deploy multiple versions of the same
+            # thing at once and not have them clash.
+            # This assumes the first value in the json patch is the label that
+            # should have the suffix attached.
+            yq -i e '
+              "${{ inputs.version }}" as $suffix |
+              .[0].value |= sub("^([^.]+)", "${1}-" + $suffix)' \
+              "$FILENAME"
+              echo "::group::Modified $BASE_FILENAME"
+              cat "$FILENAME"
+              echo '::endgroup::'
+          else
+            echo "::warning::$FILENAME doesn't exist. Skipping modification"
+          fi
+        fi
+      shell: bash
