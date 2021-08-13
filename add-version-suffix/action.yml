@@ -42,8 +42,8 @@ runs:
       shell: bash
     - name: Modify label selector patch
       run: |
+        FILES=(deployment-label-patch.yaml service-label-patch.yaml)
         for BASE_FILENAME in "${FILES[@]}"; do
-          BASE_FILENAME=label-selector-patch.yaml
           FILENAME="kubernetes/overlays/${{ inputs.env }}/$BASE_FILENAME"
           if [[ -e "$FILENAME" ]]; then
             echo "Modifying $BASE_FILENAME"
