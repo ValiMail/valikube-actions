@@ -23,35 +23,24 @@ runs:
         cat kustomization.yaml
         echo '::endgroup::'
       shell: bash
-    - name: Modify the hostname of deployed services
+    - name: Add suffix to patches
       run: |
-        FILENAME="kubernetes/overlays/${{ inputs.env }}/lb-patch.yaml"
-        if [[ -e "$FILENAME" ]]; then
-          echo "Modifying lb-patch.yaml"
-          # Modifies the domain name in lb-patch.yaml adding the suffix to it
-          yq -i e '
-            "${{ inputs.version }}" as $suffix |
-            .[0].value[0].hosts[0] |= sub("^([^.]+)", "${1}-" + $suffix)' \
-            "$FILENAME"
-            echo '::group::Modified lb-patch.yaml'
-            cat "$FILENAME"
-            echo '::endgroup::'
-        else
-          echo "::warning::$FILENAME doesn't exist. Skipping hostname modification"
-        fi
-      shell: bash
-    - name: Modify label selector patch
-      run: |
-        FILES=(deployment-label-patch.yaml service-label-patch.yaml)
+        # Modifies the patches, adding a suffix to the first value in each
+        # patch (adding the suffix to the subdomain if it's a hostname that's
+        # part of the first value.
+        # For the label patches, this adds a suffix to the label selectors.
+        # For the lb patch, it modifies the hostname.
+        # This is needed so we can deploy multiple versions of the same
+        # thing at once and not have them clash.
+        FILES=(
+          lb-patch.yaml
+          deployment-label-patch.yaml
+          service-label-patch.yaml
+        )
         for BASE_FILENAME in "${FILES[@]}"; do
           FILENAME="kubernetes/overlays/${{ inputs.env }}/$BASE_FILENAME"
           if [[ -e "$FILENAME" ]]; then
             echo "Modifying $BASE_FILENAME"
-            # Modifies the label value in the patch, adding a suffix to it.
-            # This ie needed so we can deploy multiple versions of the same
-            # thing at once and not have them clash.
-            # This assumes the first value in the json patch is the label that
-            # should have the suffix attached.
             yq -i e '
               "${{ inputs.version }}" as $suffix |
               .[0].value |= sub("^([^.]+)", "${1}-" + $suffix)' \
