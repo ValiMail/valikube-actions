@@ -16,7 +16,8 @@ runs:
     - name: Notify slack that a deploy was performed
       run: |
         echo '::group::Notifying deploy channel in slack'
-        curl -H "Authorization: Bearer ${{ inputs.slack_token }}" \
+        curl -s -H "Authorization: Bearer ${{ inputs.slack_token }}" \
+          -H "Content-type: application/json" \
           --data "{\"channel\":\"${{ inputs.slack_channel_id }}\", \"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"$GITHUB_ACTOR deployed *${GITHUB_REPOSITORY##*/}* \`${GITHUB_SHA:0:7}\` to *${{ inputs.env }}*\"}}]}" \
           -X POST https://slack.com/api/chat.postMessage
         echo '::endgroup::'
