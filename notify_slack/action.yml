@@ -1,0 +1,23 @@
+name: 'Valikube slack notify'
+description: 'Notify slack that a deploy was performed'
+inputs:
+  env:
+    description: 'Environment that was deployed to'
+    required: true
+  slack_token:
+    description: 'The slack bot token used to authenticate to slack'
+    required: true
+  slack_channel_id:
+    description: 'The ID of the slack channel to notify'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Notify slack that a deploy was performed
+      run: |
+        echo '::group::Notifying deploy channel in slack'
+        curl -H "Authorization: Bearer ${{ inputs.slack_token }}" \
+          --data "{\"channel\":\"${{ inputs.slack_channel_id }}\", \"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"$GITHUB_ACTOR deployed *${GITHUB_REPOSITORY##*/}* \`${GITHUB_SHA:0:7}\` to *${{ inputs.env }}*\"}}]}" \
+          -X POST https://slack.com/api/chat.postMessage
+        echo '::endgroup::'
+      shell: bash
