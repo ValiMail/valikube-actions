@@ -10,15 +10,36 @@ inputs:
   slack_channel_id:
     description: 'The ID of the slack channel to notify'
     required: true
+  teardown:
+    description: 'Is the notification for a teardown instead of a deploy?'
+    required: false
+    default: 'false'
 runs:
   using: 'composite'
   steps:
     - name: Notify slack that a deploy was performed
       run: |
         echo '::group::Notifying deploy channel in slack'
+        ACTION="deployed"
+        TO_FROM="to"
+        if [[ ${{ inputs.teardown }} == "true" ]]; then
+          ACTION="tore down"
+          TO_FROM="from"
+        fi
         curl -s -H "Authorization: Bearer ${{ inputs.slack_token }}" \
           -H "Content-type: application/json; charset=utf-8" \
-          --data "{\"channel\":\"${{ inputs.slack_channel_id }}\", \"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"$GITHUB_ACTOR deployed *${GITHUB_REPOSITORY##*/}* \`${GITHUB_SHA:0:7}\` to *${{ inputs.env }}*\"}}]}" \
+          --data "{
+            \"channel\":\"${{ inputs.slack_channel_id }}\",
+            \"blocks\":[
+              {
+                \"type\": \"section\",
+                \"text\": {
+                  \"type\": \"mrkdwn\",
+                  \"text\": \"$GITHUB_ACTOR $ACTION *${GITHUB_REPOSITORY##*/}* \`${GITHUB_SHA:0:7}\` $TO_FROM *${{ inputs.env }}* (<$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID|view logs on github>)\"
+                }
+              }
+            ]
+          }" \
           -X POST https://slack.com/api/chat.postMessage
         echo
         echo '::endgroup::'
